@@ -50,7 +50,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->circBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
     connect(ui->triBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
 
-    // You can optionally select a default button to be highlighted at start
     selectedButton = ui->arrowBtn;
     updateButtonStyles(selectedButton);
 
@@ -79,7 +78,6 @@ void MainWindow::updateActions()
 {
     bool hasContent = isDrawing || svgLoaded || !scene->items().isEmpty();
 
-    // Enable/disable file actions based on whether there's content to work with
     ui->actionNew->setEnabled(true);  // Always enable New action
     ui->actionSave->setEnabled(hasContent && ui->svgTabs->currentIndex() != 0);
     ui->actionSave_As->setEnabled(hasContent && ui->svgTabs->currentIndex() != 0);
@@ -92,7 +90,6 @@ void MainWindow::updateActions()
 
 void MainWindow::onButtonClicked()
 {
-    // Get the clicked button
     QPushButton* clickedButton = qobject_cast<QPushButton*>(sender());
 
     if (selectedButton == clickedButton) {
@@ -204,7 +201,6 @@ void MainWindow::onGraphicsViewMousePressed(QMouseEvent *event)
         ui->editorGraphicsView->scene()->addItem(currentRect);
         isDrawing = true;
 
-        // Ensure file-related actions like "Save" and "Print" are enabled after the user starts drawing
         updateActions();
         break;
 
@@ -219,7 +215,6 @@ void MainWindow::onGraphicsViewMousePressed(QMouseEvent *event)
         ui->editorGraphicsView->scene()->addItem(currentEllipse);
         isDrawing = true;
 
-        // Ensure file-related actions like "Save" and "Print" are enabled after the user starts drawing
         updateActions();
         break;
 
@@ -234,7 +229,6 @@ void MainWindow::onGraphicsViewMousePressed(QMouseEvent *event)
         ui->editorGraphicsView->scene()->addItem(currentPolygon);
         isDrawing = true;
 
-        // Ensure file-related actions like "Save" and "Print" are enabled after the user starts drawing
         updateActions();
         break;
 
@@ -297,35 +291,21 @@ void MainWindow::onGraphicsViewMouseReleased(QMouseEvent *event)
     case RectangleDrawMode:
     {
         if (currentRect) {
-            // Map the final scene point correctly
             QPointF finalPoint = ui->editorGraphicsView->mapToScene(event->pos());
 
-            // Normalize the rectangle to avoid negative dimensions
             QRectF finalRect = QRectF(initialPoint, finalPoint).normalized();
 
-            // Debug to check if coordinates are correct
-            qDebug() << "Final Rect Dimensions:"
-                     << "x:" << finalRect.x()
-                     << "y:" << finalRect.y()
-                     << "width:" << finalRect.width()
-                     << "height:" << finalRect.height();
-
-            // Ensure colors are applied correctly
-            qDebug() << "Pen Color:" << pen.color().name() << "Brush Color:" << brush.color().name();
-
-            // Construct the SVG rectangle string
-            QString rectSvg = QString("<rect x='%1' y='%2' width='%3' height='%4' style='stroke:%5; fill:%6; stroke-width:2;'/>")
+            QString rectSvg = QString("<rect x='%1' y='%2' width='%3' height='%4' style='stroke:%5; fill:%6; stroke-width:%7;'/>")
                                   .arg(finalRect.x())
                                   .arg(finalRect.y())
                                   .arg(finalRect.width())
                                   .arg(finalRect.height())
                                   .arg(pen.color().name())
-                                  .arg(brush.color().alpha() == 0 ? "none" : brush.color().name());
+                                  .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
+                                  .arg(pen.width());
 
-            // Append the SVG string to the current SVG data
             dataAdded += rectSvg + "\n";
 
-            // Clear the current rectangle
             currentRect = nullptr;
         }
         break;
@@ -338,13 +318,14 @@ void MainWindow::onGraphicsViewMouseReleased(QMouseEvent *event)
             currentEllipse->setRect(finalEllipse.normalized());
             currentEllipse->setBrush(brush);
 
-            QString ellipseSvg = QString("<ellipse cx='%1' cy='%2' rx='%3' ry='%4' style='stroke:%5; fill:%6; stroke-width:2;'/>")
+            QString ellipseSvg = QString("<ellipse cx='%1' cy='%2' rx='%3' ry='%4' style='stroke:%5; fill:%6; stroke-width:%7;'/>")
                                      .arg(finalEllipse.center().x())
                                      .arg(finalEllipse.center().y())
                                      .arg(finalEllipse.width() / 2.0)
                                      .arg(finalEllipse.height() / 2.0)
                                      .arg(pen.color().name())
-                                     .arg(brush.color().alpha() == 0 ? "none" : brush.color().name());
+                                     .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
+                                     .arg(pen.width());
             dataAdded += ellipseSvg + "\n";
 
             currentEllipse = nullptr;
@@ -359,20 +340,19 @@ void MainWindow::onGraphicsViewMouseReleased(QMouseEvent *event)
             QPointF point2(scenePoint.x(), initialPoint.y());
             QPointF point3((initialPoint.x() + scenePoint.x()) / 2, scenePoint.y());
 
-            // Create the final triangle polygon
             QPolygonF finalTriangle;
             finalTriangle << point1 << point2 << point3;
 
             currentPolygon->setPolygon(finalTriangle);
             currentPolygon->setBrush(brush);
 
-            // Add triangle to SVG data
-            QString triangleSvg = QString("<polygon points='%1,%2 %3,%4 %5,%6' style='stroke:%7; fill:%8; stroke-width:2;'/>")
+            QString triangleSvg = QString("<polygon points='%1,%2 %3,%4 %5,%6' style='stroke:%7; fill:%8; stroke-width:%9;'/>")
                                       .arg(point1.x()).arg(point1.y())
                                       .arg(point2.x()).arg(point2.y())
                                       .arg(point3.x()).arg(point3.y())
                                       .arg(pen.color().name())
-                                       .arg(brush.color().alpha() == 0 ? "none" : brush.color().name());
+                                      .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
+                                      .arg(pen.width());
             dataAdded += triangleSvg + "\n";
 
             currentPolygon = nullptr;
@@ -544,6 +524,7 @@ void MainWindow::on_actionOpen_triggered()
         QFile file(fileName);
         if(file.open(QIODevice::ReadOnly | QIODevice::Text)){
             currentSvgData = file.readAll();
+            dataAdded.clear();
             file.close();
         }
 
@@ -585,7 +566,6 @@ void MainWindow::on_actionSave_As_triggered()
 
     QString svgContent;
     if (!currentSvgData.contains("<svg")) {
-        // Add a new SVG header if not present
         QString svgHeader = "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='800' height='800' viewBox='0 0 800 800'>\n";
         svgContent = svgHeader + dataAdded + "\n</svg>";
     } else {
@@ -597,11 +577,10 @@ void MainWindow::on_actionSave_As_triggered()
     QFile file(fileName);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
-        out << svgContent;  // Write the SVG content
+        out << svgContent;
         file.close();
     }
 
-    qDebug() << "Saved SVG:\n" << svgContent;  // Log the output
     currentSvgPath = fileName;
     svgLoaded = true;
 }
@@ -722,10 +701,8 @@ void MainWindow::on_colorDlgBtn_clicked()
 
     if (msgBox.clickedButton() == penButton) {
         pen.setColor(selectedColor);
-        qDebug() << "Pen color set to:" << selectedColor.name();
     } else if (msgBox.clickedButton() == brushButton) {
         brush.setColor(selectedColor);
-        qDebug() << "Brush color set to:" << selectedColor.name();
     }
 
     ui->colorDlgBtn->setStyleSheet(QString("background-color: %1").arg(selectedColor.name()));
@@ -742,7 +719,6 @@ void MainWindow::on_xValue_editingFinished()
     if (!selectedItem)
         return;
 
-    // Get the new x position from the UI and update the item
     qreal newX = ui->xValue->text().toDouble();
     selectedItem->setPos(newX, selectedItem->pos().y());
 }
@@ -756,7 +732,6 @@ void MainWindow::on_yValue_editingFinished()
     if (!selectedItem)
         return;
 
-    // Get the new y position from the UI and update the item
     qreal newY = ui->yValue->text().toDouble();
     selectedItem->setPos(selectedItem->pos().x(), newY);
 }
@@ -771,7 +746,6 @@ void MainWindow::on_wValue_editingFinished()
     QGraphicsEllipseItem *ellipseItem = dynamic_cast<QGraphicsEllipseItem *>(selectedItem);
     QGraphicsPolygonItem *polygonItem = dynamic_cast<QGraphicsPolygonItem *>(selectedItem);
 
-    // Handle rectangle scaling
     if (rectItem) {
         QRectF rect = rectItem->rect();
         qreal newWidth = ui->wValue->value();
@@ -780,7 +754,6 @@ void MainWindow::on_wValue_editingFinished()
         return;
     }
 
-    // Handle ellipse scaling
     if (ellipseItem) {
         QRectF rect = ellipseItem->rect();
         qreal newWidth = ui->wValue->value();
@@ -789,7 +762,6 @@ void MainWindow::on_wValue_editingFinished()
         return;
     }
 
-    // Handle triangle (polygon) scaling
     if (polygonItem) {
         QPolygonF polygon = polygonItem->polygon();
         if (polygon.size() >= 3) {
@@ -813,7 +785,6 @@ void MainWindow::on_hValue_editingFinished()
     QGraphicsEllipseItem *ellipseItem = dynamic_cast<QGraphicsEllipseItem *>(selectedItem);
     QGraphicsPolygonItem *polygonItem = dynamic_cast<QGraphicsPolygonItem *>(selectedItem);
 
-    // Handle rectangle scaling
     if (rectItem) {
         QRectF rect = rectItem->rect();
         qreal newHeight = ui->hValue->value();
@@ -822,7 +793,6 @@ void MainWindow::on_hValue_editingFinished()
         return;
     }
 
-    // Handle ellipse scaling
     if (ellipseItem) {
         QRectF rect = ellipseItem->rect();
         qreal newHeight = ui->hValue->value();
@@ -831,7 +801,6 @@ void MainWindow::on_hValue_editingFinished()
         return;
     }
 
-    // Handle triangle (polygon) scaling
     if (polygonItem) {
         QPolygonF polygon = polygonItem->polygon();
         if (polygon.size() >= 3) {
