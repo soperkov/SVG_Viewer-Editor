@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>Icons/app-icon.svg</file>
+        <file>Icons/circle-icon.svg</file>
+        <file>Icons/rectangle-icon.svg</file>
+        <file>Icons/rotate-icon.svg</file>
+        <file>Icons/triangle-icon.svg</file>
+        <file>Icons/zoom-in-icon.svg</file>
+        <file>Icons/zoom-out-icon.svg</file>
+        <file>Icons/pointer-icon.svg</file>
+        <file>Icons/addText-icon.svg</file>
+        <file>Icons/colorPalette-icon.svg</file>
+        <file>Icons/colorPicker-icon.svg</file>
+        <file>Icons/zoom-in-cursor.png</file>
+        <file>Icons/zoom-out-cursor.png</file>
+        <file>Icons/draw-cursor.png</file>
+        <file>Icons/textbox-cursor.png</file>
+        <file>Icons/brush-icon.svg</file>
+    </qresource>
+</RCC>
