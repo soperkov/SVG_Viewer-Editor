@@ -23,5 +23,6 @@
 #include <QSlider>
 #include <QRadioButton>
 #include <QMessageBox>
+#include <QVector2D>
 
 #endif // INCLUDES_H

@@ -424,22 +424,18 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         break;
 
     case Key_D:
-    case Key_Right:
         ui->xValue->setValue(ui->xValue->value() + 5);
         break;
 
     case Key_A:
-    case Key_Left:
         ui->xValue->setValue(ui->xValue->value() - 5);
         break;
 
     case Key_W:
-    case Key_Up:
         ui->yValue->setValue(ui->yValue->value() - 5);
         break;
 
     case Key_S:
-    case Key_Down:
         ui->yValue->setValue(ui->yValue->value() + 5);
         break;
 
