@@ -28,8 +28,8 @@ INK MUSE is a simple SVG viewer, editor, and creator. It offers an intuitive int
 ### Additional information
 If building through Visual Studio:
  1. Download VS Qt extension from NuGet packages.
- 2. Convert ".pro" to ".vcxproj" file
+ 2. Convert ".pro" to ".vcxproj" file.
  3. In project Properties: Configuration Propeties > C/C++ > General > Additional Include Directories > "[Qt
-folder]\6.7.2\msvc2019_64\include\QtSvgWidgets" 
+folder]\6.7.2\msvc2019_64\include\QtSvgWidgets".
 
 Everything is set to run INK MUSE.
