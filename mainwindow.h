@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "includes.h"
 #include "customgraphicsview.h"
+#include "graphicscontroller.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -18,6 +19,16 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+    enum Axis {
+        XAxis,
+        YAxis
+    };
+
+    enum Dimension {
+        Width,
+        Height
+    };
 
     enum CursorMode {
         DefaultPointer = 1,
@@ -41,22 +52,13 @@ private slots:
     void on_actionSave_As_triggered();
     void on_actionPrint_triggered();
     void on_actionExit_App_triggered();
-    void on_arrowBtn_clicked();
-    void on_zoomInBtn_clicked();
-    void on_zoomOutBtn_clicked();
-    void on_rectBtn_clicked();
-    void on_circBtn_clicked();
-    void on_triBtn_clicked();
+    void handleButtonClick(QPushButton* clickedButton, CursorMode mode, QGraphicsView::DragMode dragMode = QGraphicsView::NoDrag);
     void on_brushBtn_clicked();
     void on_colorDlgBtn_clicked();
-    void on_xValue_editingFinished();
-    void on_yValue_editingFinished();
-    void on_hValue_editingFinished();
-    void on_wValue_editingFinished();
+    void on_axis_editingFinished(Axis axis);
+    void on_dimension_editingFinished(Dimension dimension);
     void onTabChanged(int index);
     void updateActions();
-    void zoomInAtPoint(const QPoint &point);
-    void zoomOutAtPoint(const QPoint &point);
     void setCursorMode(CursorMode mode);
     void onGraphicsViewMousePressed(QMouseEvent *event);
     void onGraphicsViewMouseMoved(QMouseEvent *event);
@@ -77,10 +79,6 @@ private:
     QString dataAdded;
     QString currentSvgData;
     QString currentSvgPath;
-    QSvgRenderer *svgRenderer;
-    QGraphicsRectItem *currentRect = nullptr;
-    QGraphicsEllipseItem *currentEllipse = nullptr;
-    QGraphicsPolygonItem *currentPolygon = nullptr;
     QPointF initialPoint;
     bool isDrawing = false;
     CustomGraphicsView *editorGraphicsView;
@@ -88,6 +86,8 @@ private:
     QPushButton *selectedButton = nullptr;
     void updateButtonStyles(QPushButton* clickedButton);
     void onBrushSizeSliderDialog();
+    GraphicsController *graphicsController;
+    QSvgRenderer *svgRenderer;
 
 };
 

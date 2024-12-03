@@ -6,11 +6,14 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , graphicsController(new GraphicsController(this))
     , svgRenderer(nullptr)
 {
     ui->setupUi(this);
 
     scene = new QGraphicsScene(0, 0, 800, 800, this);
+
+    graphicsController->setScene(scene);
 
     ui->viewerGraphicsView->setScene(scene);
     ui->editorGraphicsView->setScene(scene);
@@ -39,16 +42,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->editorGraphicsView, &CustomGraphicsView::mouseMoved, this, &MainWindow::onGraphicsViewMouseMoved);
     connect(ui->editorGraphicsView, &CustomGraphicsView::mouseReleased, this, &MainWindow::onGraphicsViewMouseReleased);
     connect(scene, &QGraphicsScene::selectionChanged, this, &MainWindow::onSelectionChanged);
-    connect(ui->xValue, SIGNAL(valueChanged(int)), this, SLOT(on_xValue_editingFinished()));
-    connect(ui->yValue, SIGNAL(valueChanged(int)), this, SLOT(on_yValue_editingFinished()));
-    connect(ui->wValue, SIGNAL(valueChanged(int)), this, SLOT(on_wValue_editingFinished()));
-    connect(ui->hValue, SIGNAL(valueChanged(int)), this, SLOT(on_hValue_editingFinished()));
-    connect(ui->arrowBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
-    connect(ui->zoomInBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
-    connect(ui->zoomOutBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
-    connect(ui->rectBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
-    connect(ui->circBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
-    connect(ui->triBtn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
+    connect(ui->xValue, &QSpinBox::editingFinished, [this]() { on_axis_editingFinished(XAxis); });
+    connect(ui->yValue, &QSpinBox::editingFinished, [this]() { on_axis_editingFinished(YAxis); });
+    connect(ui->wValue, &QSpinBox::editingFinished, [this]() { on_dimension_editingFinished(Width); });
+    connect(ui->hValue, &QSpinBox::editingFinished, [this]() { on_dimension_editingFinished(Height); });
+    connect(ui->arrowBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->arrowBtn, DefaultPointer, QGraphicsView::NoDrag); });
+    connect(ui->zoomInBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->zoomInBtn, ZoomInMode); });
+    connect(ui->zoomOutBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->zoomOutBtn, ZoomOutMode); });
+    connect(ui->rectBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->rectBtn, RectangleDrawMode); });
+    connect(ui->circBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->circBtn, CircleDrawMode); });
+    connect(ui->triBtn, &QPushButton::clicked, this, [this]() { handleButtonClick(ui->triBtn, TriangleDrawMode); });
 
     selectedButton = ui->arrowBtn;
     updateButtonStyles(selectedButton);
@@ -111,259 +114,116 @@ void MainWindow::updateButtonStyles(QPushButton* clickedButton)
 
 void MainWindow::setCursorMode(CursorMode mode)
 {
-    if (currentCursorMode == mode) {
-        currentCursorMode = DefaultPointer;
+    currentCursorMode = mode;
+
+    switch (mode) {
+    case DefaultPointer:
         ui->editorGraphicsView->unsetCursor();
         ui->editorGraphicsView->setDragMode(QGraphicsView::NoDrag);
-    } else {
-        currentCursorMode = mode;
-        switch (currentCursorMode) {
-        case ZoomInMode: {
-            QPixmap zoomInCursorPixmap(":/icons/Icons/zoom-in-cursor.png");
-            QPixmap scaledCursorPixmap = zoomInCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            QCursor magnifier(scaledCursorPixmap);
-            ui->editorGraphicsView->setCursor(magnifier);
-            break;
-        }
-        case ZoomOutMode: {
-            QPixmap zoomOutCursorPixmap(":/icons/Icons/zoom-out-cursor.png");
-            QPixmap scaledCursorPixmap = zoomOutCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            QCursor zoomOut(scaledCursorPixmap);
-            ui->editorGraphicsView->setCursor(zoomOut);
-            break;
-        }
-        case RectangleDrawMode:
-        case CircleDrawMode:
-        case TriangleDrawMode:
-        {
-            QPixmap zoomOutCursorPixmap(":/icons/Icons/draw-cursor.png");
-            QPixmap scaledCursorPixmap = zoomOutCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-            QCursor zoomOut(scaledCursorPixmap);
-            ui->editorGraphicsView->setCursor(zoomOut);
-            break;
-        }
+        break;
 
-        case DefaultPointer:
-        default:
-            ui->editorGraphicsView->unsetCursor();
-            ui->editorGraphicsView->setDragMode(QGraphicsView::NoDrag);
-        }
+    case ZoomInMode: {
+        QPixmap zoomInCursorPixmap(":/icons/Icons/zoom-in-cursor.png");
+        QPixmap scaledCursorPixmap = zoomInCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        QCursor magnifier(scaledCursorPixmap);
+        ui->editorGraphicsView->setCursor(magnifier);
+        break;
+    }
+    case ZoomOutMode: {
+        QPixmap zoomOutCursorPixmap(":/icons/Icons/zoom-out-cursor.png");
+        QPixmap scaledCursorPixmap = zoomOutCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        QCursor zoomOut(scaledCursorPixmap);
+        ui->editorGraphicsView->setCursor(zoomOut);
+        break;
+    }
+    case RectangleDrawMode:
+    case CircleDrawMode:
+    case TriangleDrawMode:
+    {
+        QPixmap zoomOutCursorPixmap(":/icons/Icons/draw-cursor.png");
+        QPixmap scaledCursorPixmap = zoomOutCursorPixmap.scaled(20, 20, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        QCursor zoomOut(scaledCursorPixmap);
+        ui->editorGraphicsView->setCursor(zoomOut);
+        break;
+    }
     }
 }
+
 
 void MainWindow::onGraphicsViewMousePressed(QMouseEvent *event)
 {
     QPointF clickedPoint = ui->editorGraphicsView->mapToScene(event->pos());
 
-    if (currentCursorMode == DefaultPointer) {
-        QRectF selectionArea(clickedPoint.x() - 5, clickedPoint.y() - 5, 10, 10);
-
-        QList<QGraphicsItem *> itemsInArea = scene->items(selectionArea);
-        if (!itemsInArea.isEmpty()) {
-            QGraphicsItem *item = itemsInArea.first();
-
-            scene->clearSelection();
-            item->setSelected(true);
-            updateItemProperties(item);
-        } else {
-            scene->clearSelection();
-        }
-        return;
-    }
-
-    initialPoint = clickedPoint;
-
-    qDebug() << "Mouse Pressed at: " << event->pos() << "initial point at:" << initialPoint;
-
-
-    if (currentCursorMode == DefaultPointer)
-        return;
-
-    initialPoint = ui->editorGraphicsView->mapToScene(event->pos());
-
     switch (currentCursorMode) {
+    case RectangleDrawMode:
+        graphicsController->startDrawingRectangle(clickedPoint, pen, brush);
+        break;
+
+    case CircleDrawMode:
+        graphicsController->startDrawingEllipse(clickedPoint, pen, brush);
+        break;
+
+    case TriangleDrawMode:
+        graphicsController->startDrawingTriangle(clickedPoint, pen, brush);
+        break;
+
     case ZoomInMode:
-        zoomInAtPoint(event->pos());
+        graphicsController->zoomInAtPoint(clickedPoint, ui->editorGraphicsView);
         break;
 
     case ZoomOutMode:
-        zoomOutAtPoint(event->pos());
-        break;
-
-    case RectangleDrawMode:
-        currentRect = new QGraphicsRectItem(QRectF(initialPoint, initialPoint));
-        currentRect->setPen(QPen(pen.color(), pen.width()));
-        currentRect->setBrush(brush);
-
-        currentRect->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        currentRect->setFlag(QGraphicsItem::ItemIsMovable, true);
-
-        ui->editorGraphicsView->scene()->addItem(currentRect);
-        isDrawing = true;
-
-        updateActions();
-        break;
-
-    case CircleDrawMode:
-        currentEllipse = new QGraphicsEllipseItem(QRectF(initialPoint, initialPoint));
-        currentEllipse->setPen(QPen(pen.color(), pen.width()));
-        currentEllipse->setBrush(brush);
-
-        currentEllipse->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        currentEllipse->setFlag(QGraphicsItem::ItemIsMovable, true);
-
-        ui->editorGraphicsView->scene()->addItem(currentEllipse);
-        isDrawing = true;
-
-        updateActions();
-        break;
-
-    case TriangleDrawMode:
-        currentPolygon = new QGraphicsPolygonItem();
-        currentPolygon->setPen(QPen(pen.color(), pen.width()));
-        currentPolygon->setBrush(brush);
-
-        currentPolygon->setFlag(QGraphicsItem::ItemIsSelectable, true);
-        currentPolygon->setFlag(QGraphicsItem::ItemIsMovable, true);
-
-        ui->editorGraphicsView->scene()->addItem(currentPolygon);
-        isDrawing = true;
-
-        updateActions();
+        graphicsController->zoomOutAtPoint(clickedPoint, ui->editorGraphicsView);
         break;
 
     default:
         break;
-
     }
 }
+
 
 void MainWindow::onGraphicsViewMouseMoved(QMouseEvent *event)
 {
-    if (!isDrawing)
-        return;
-
-    QPointF currentPos = ui->editorGraphicsView->mapToScene(event->pos());
+    QPointF currentPoint = ui->editorGraphicsView->mapToScene(event->pos());
 
     switch (currentCursorMode) {
     case RectangleDrawMode:
-        if (currentRect) {
-            QRectF newRect(initialPoint, currentPos);
-            currentRect->setRect(newRect.normalized());
-        }
+        graphicsController->updateDrawingRectangle(currentPoint);
         break;
 
     case CircleDrawMode:
-        if (currentEllipse) {
-            QRectF newEllipse(initialPoint, currentPos);
-            currentEllipse->setRect(newEllipse.normalized());
-        }
+        graphicsController->updateDrawingEllipse(currentPoint);
         break;
 
     case TriangleDrawMode:
-        if (currentPolygon) {
-            QPointF point1 = initialPoint;
-            QPointF point2(currentPos.x(), initialPoint.y());
-            QPointF point3((initialPoint.x() + currentPos.x()) / 2, currentPos.y());
-
-            QPolygonF triangle;
-            triangle << point1 << point2 << point3;
-
-            currentPolygon->setPolygon(triangle);
-        }
+        graphicsController->updateDrawingTriangle(currentPoint);
         break;
 
     default:
         break;
     }
 }
+
 
 void MainWindow::onGraphicsViewMouseReleased(QMouseEvent *event)
 {
-    QPointF scenePoint = ui->editorGraphicsView->mapToScene(event->pos());
-
-    if (!isDrawing)
-        return;
-
-    isDrawing = false;
-
     switch (currentCursorMode) {
     case RectangleDrawMode:
-    {
-        if (currentRect) {
-            QPointF finalPoint = ui->editorGraphicsView->mapToScene(event->pos());
-
-            QRectF finalRect = QRectF(initialPoint, finalPoint).normalized();
-
-            QString rectSvg = QString("<rect x='%1' y='%2' width='%3' height='%4' style='stroke:%5; fill:%6; stroke-width:%7;'/>")
-                                  .arg(finalRect.x())
-                                  .arg(finalRect.y())
-                                  .arg(finalRect.width())
-                                  .arg(finalRect.height())
-                                  .arg(pen.color().name())
-                                  .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
-                                  .arg(pen.width());
-
-            dataAdded += rectSvg + "\n";
-
-            currentRect = nullptr;
-        }
+        graphicsController->finishDrawingRectangle();
         break;
-    }
 
     case CircleDrawMode:
-    {
-        if (currentEllipse) {
-            QRectF finalEllipse(initialPoint, scenePoint);
-            currentEllipse->setRect(finalEllipse.normalized());
-            currentEllipse->setBrush(brush);
-
-            QString ellipseSvg = QString("<ellipse cx='%1' cy='%2' rx='%3' ry='%4' style='stroke:%5; fill:%6; stroke-width:%7;'/>")
-                                     .arg(finalEllipse.center().x())
-                                     .arg(finalEllipse.center().y())
-                                     .arg(finalEllipse.width() / 2.0)
-                                     .arg(finalEllipse.height() / 2.0)
-                                     .arg(pen.color().name())
-                                     .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
-                                     .arg(pen.width());
-            dataAdded += ellipseSvg + "\n";
-
-            currentEllipse = nullptr;
-        }
+        graphicsController->finishDrawingEllipse();
         break;
-    }
 
     case TriangleDrawMode:
-    {
-        if (currentPolygon) {
-            QPointF point1 = initialPoint;
-            QPointF point2(scenePoint.x(), initialPoint.y());
-            QPointF point3((initialPoint.x() + scenePoint.x()) / 2, scenePoint.y());
-
-            QPolygonF finalTriangle;
-            finalTriangle << point1 << point2 << point3;
-
-            currentPolygon->setPolygon(finalTriangle);
-            currentPolygon->setBrush(brush);
-
-            QString triangleSvg = QString("<polygon points='%1,%2 %3,%4 %5,%6' style='stroke:%7; fill:%8; stroke-width:%9;'/>")
-                                      .arg(point1.x()).arg(point1.y())
-                                      .arg(point2.x()).arg(point2.y())
-                                      .arg(point3.x()).arg(point3.y())
-                                      .arg(pen.color().name())
-                                      .arg(brush.color().alpha() == 0 ? "none" : brush.color().name())
-                                      .arg(pen.width());
-            dataAdded += triangleSvg + "\n";
-
-            currentPolygon = nullptr;
-        }
+        graphicsController->finishDrawingTriangle();
         break;
-    }
 
     default:
-        QMainWindow::mouseReleaseEvent(event);
+        break;
     }
 }
+
 
 void MainWindow::updateItemProperties(QGraphicsItem *item)
 {
@@ -456,24 +316,6 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 void MainWindow::enableRubberBandSelection()
 {
     ui->editorGraphicsView->setDragMode(QGraphicsView::RubberBandDrag);
-}
-
-void MainWindow::zoomInAtPoint(const QPoint &point)
-{
-    QPointF scenePoint = ui->editorGraphicsView->mapToScene(point);
-
-    const double scaleFactor = 1.2;
-    ui->editorGraphicsView->scale(scaleFactor, scaleFactor);
-    ui->editorGraphicsView->centerOn(scenePoint);
-}
-
-void MainWindow::zoomOutAtPoint(const QPoint &point)
-{
-    QPointF scenePoint = ui->editorGraphicsView->mapToScene(point);
-
-    const double scaleFactor = 1.2;
-    ui->editorGraphicsView->scale(1.0 / scaleFactor, 1.0 / scaleFactor);
-    ui->editorGraphicsView->centerOn(scenePoint);
 }
 
 MainWindow::~MainWindow()
@@ -609,39 +451,25 @@ void MainWindow::on_actionExit_App_triggered()
     QApplication::quit();
 }
 
-
-void MainWindow::on_arrowBtn_clicked()
+void MainWindow::handleButtonClick(QPushButton* clickedButton, CursorMode mode, QGraphicsView::DragMode dragMode)
 {
-    if (currentCursorMode != DefaultPointer)
-        setCursorMode(DefaultPointer);
+    if (selectedButton == clickedButton) {
+        return; // Prevent redundant action if the same button is clicked
+    }
 
-    ui->editorGraphicsView->setDragMode(QGraphicsView::NoDrag);
+    // Update button styles
+    updateButtonStyles(clickedButton);
+    selectedButton = clickedButton;
+
+    // Change cursor mode and optionally drag mode
+    if (currentCursorMode != mode) {
+        setCursorMode(mode);
+    }
+    if (mode == DefaultPointer) {
+        ui->editorGraphicsView->setDragMode(dragMode);
+    }
 }
 
-void MainWindow::on_zoomInBtn_clicked()
-{
-    setCursorMode(ZoomInMode);
-}
-
-void MainWindow::on_zoomOutBtn_clicked()
-{
-    setCursorMode(ZoomOutMode);
-}
-
-void MainWindow::on_rectBtn_clicked()
-{
-    setCursorMode(RectangleDrawMode);
-}
-
-void MainWindow::on_circBtn_clicked()
-{
-    setCursorMode(CircleDrawMode);
-}
-
-void MainWindow::on_triBtn_clicked()
-{
-    setCursorMode(TriangleDrawMode);
-}
 
 void MainWindow::on_brushBtn_clicked()
 {
@@ -706,54 +534,54 @@ void MainWindow::on_colorDlgBtn_clicked()
 
 
 
-void MainWindow::on_xValue_editingFinished()
+void MainWindow::on_axis_editingFinished(Axis axis)
 {
     if (scene->selectedItems().isEmpty())
         return;
 
-    QGraphicsItem *selectedItem = scene->selectedItems().first();
+    QGraphicsItem* selectedItem = scene->selectedItems().first();
     if (!selectedItem)
         return;
 
-    qreal newX = ui->xValue->text().toDouble();
-    selectedItem->setPos(newX, selectedItem->pos().y());
+    qreal newValue = (axis == XAxis) ? ui->xValue->text().toDouble() : ui->yValue->text().toDouble();
+    if (axis == XAxis) {
+        selectedItem->setPos(newValue, selectedItem->pos().y());
+    } else if (axis == YAxis) {
+        selectedItem->setPos(selectedItem->pos().x(), newValue);
+    }
 }
 
-void MainWindow::on_yValue_editingFinished()
+
+void MainWindow::on_dimension_editingFinished(Dimension dimension)
 {
     if (scene->selectedItems().isEmpty())
         return;
 
-    QGraphicsItem *selectedItem = scene->selectedItems().first();
-    if (!selectedItem)
-        return;
+    QGraphicsItem* selectedItem = scene->selectedItems().first();
+    QGraphicsRectItem* rectItem = dynamic_cast<QGraphicsRectItem*>(selectedItem);
+    QGraphicsEllipseItem* ellipseItem = dynamic_cast<QGraphicsEllipseItem*>(selectedItem);
+    QGraphicsPolygonItem* polygonItem = dynamic_cast<QGraphicsPolygonItem*>(selectedItem);
 
-    qreal newY = ui->yValue->text().toDouble();
-    selectedItem->setPos(selectedItem->pos().x(), newY);
-}
-
-void MainWindow::on_wValue_editingFinished()
-{
-    if (scene->selectedItems().isEmpty())
-        return;
-
-    QGraphicsItem *selectedItem = scene->selectedItems().first();
-    QGraphicsRectItem *rectItem = dynamic_cast<QGraphicsRectItem *>(selectedItem);
-    QGraphicsEllipseItem *ellipseItem = dynamic_cast<QGraphicsEllipseItem *>(selectedItem);
-    QGraphicsPolygonItem *polygonItem = dynamic_cast<QGraphicsPolygonItem *>(selectedItem);
+    qreal newValue = (dimension == Width) ? ui->wValue->value() : ui->hValue->value();
 
     if (rectItem) {
         QRectF rect = rectItem->rect();
-        qreal newWidth = ui->wValue->value();
-        rect.setWidth(newWidth);
+        if (dimension == Width) {
+            rect.setWidth(newValue);
+        } else {
+            rect.setHeight(newValue);
+        }
         rectItem->setRect(rect);
         return;
     }
 
     if (ellipseItem) {
         QRectF rect = ellipseItem->rect();
-        qreal newWidth = ui->wValue->value();
-        rect.setWidth(newWidth);
+        if (dimension == Width) {
+            rect.setWidth(newValue);
+        } else {
+            rect.setHeight(newValue);
+        }
         ellipseItem->setRect(rect);
         return;
     }
@@ -762,8 +590,14 @@ void MainWindow::on_wValue_editingFinished()
         QPolygonF polygon = polygonItem->polygon();
         if (polygon.size() >= 3) {
             QPointF p1 = polygon[0]; // Fixed point
-            QPointF p2(p1.x() + ui->wValue->value(), p1.y()); // Adjust width
-            QPointF p3((p1.x() + p2.x()) / 2, polygon[2].y()); // Keep the triangle symmetric
+            QPointF p2 = polygon[1];
+            QPointF p3 = polygon[2];
+            if (dimension == Width) {
+                p2.setX(p1.x() + newValue); // Adjust width
+                p3.setX((p1.x() + p2.x()) / 2); // Keep triangle symmetric
+            } else if (dimension == Height) {
+                p3.setY(p1.y() + newValue); // Adjust height
+            }
             polygon[1] = p2;
             polygon[2] = p3;
             polygonItem->setPolygon(polygon);
@@ -771,42 +605,5 @@ void MainWindow::on_wValue_editingFinished()
     }
 }
 
-void MainWindow::on_hValue_editingFinished()
-{
-    if (scene->selectedItems().isEmpty())
-        return;
-
-    QGraphicsItem *selectedItem = scene->selectedItems().first();
-    QGraphicsRectItem *rectItem = dynamic_cast<QGraphicsRectItem *>(selectedItem);
-    QGraphicsEllipseItem *ellipseItem = dynamic_cast<QGraphicsEllipseItem *>(selectedItem);
-    QGraphicsPolygonItem *polygonItem = dynamic_cast<QGraphicsPolygonItem *>(selectedItem);
-
-    if (rectItem) {
-        QRectF rect = rectItem->rect();
-        qreal newHeight = ui->hValue->value();
-        rect.setHeight(newHeight);
-        rectItem->setRect(rect);
-        return;
-    }
-
-    if (ellipseItem) {
-        QRectF rect = ellipseItem->rect();
-        qreal newHeight = ui->hValue->value();
-        rect.setHeight(newHeight);
-        ellipseItem->setRect(rect);
-        return;
-    }
-
-    if (polygonItem) {
-        QPolygonF polygon = polygonItem->polygon();
-        if (polygon.size() >= 3) {
-            QPointF p1 = polygon[0]; // Fixed point
-            QPointF p2 = polygon[1]; // Keep width
-            QPointF p3((p1.x() + p2.x()) / 2, p1.y() + ui->hValue->value()); // Adjust height
-            polygon[2] = p3;
-            polygonItem->setPolygon(polygon);
-        }
-    }
-}
 
 
