@@ -10,11 +10,13 @@ CONFIG += c++17
 
 SOURCES += \
     customgraphicsview.cpp \
+    graphicscontroller.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
     customgraphicsview.h \
+    graphicscontroller.h \
     includes.h \
     mainwindow.h
 
